@@ -15,17 +15,17 @@ from model import SimpleModel
 def parse_args():
     parser = argparse.ArgumentParser(description='Parameters for train/test script')
     parser.add_argument('--learning-rate', '-lr', type=float, default=1e-4, help='Learning rate')
-    parser.add_argument('--epochs', '-e', type=int, default=3, help='epochs')
-    parser.add_argument('--train-batch-size', '-train-bs', type=int, default=32, help='Training batch size')
-    parser.add_argument('--test-batch-size' '-test-bs', type=int, default=32, help='Testing batch size')
-    parser.add_argument('--optimizer', '-optim', choices=['SGD'], default='SGD')
+    parser.add_argument('--epochs', type=int, default=3, help='training epochs')
+    parser.add_argument('--train-batch-size', type=int, default=32, help='Training batch size')
+    parser.add_argument('--test-batch-size', type=int, default=32, help='Testing batch size')
+    parser.add_argument('--optimizer', choices=['SGD'], default='SGD')
     parser.add_argument('--data-dir', help='Path to data folders', required=True)
     parser.add_argument('--cuda', action='store_true')
     return parser.parse_args()
 
 if __name__ == '__main__':
-    wandb.init(project="classifying-celebrities")
     args = parse_args()
+    use_cuda = not args.cuda and torch.cuda.is_available()
 
     train_dataset = ImageFolder(os.path.join(args.data_dir, 'train/'), transform=ToTensor())
     test_dataset = ImageFolder(os.path.join(args.data_dir, 'test/'), transform=ToTensor())
@@ -34,8 +34,13 @@ if __name__ == '__main__':
 
     model = SimpleModel()
 
+    wandb.init(project="classifying-celebrities", config=args)
+    wandb.watch(model, log='all')
+    config = wandb.config
+    print(config)
+
     criterion = MSELoss(reduction='sum')
-    optimizer = SGD(model.parameters(), lr=1e-4)
+    optimizer = SGD(model.parameters(), lr=args.learning_rate)
 
     for epoch in range(args.epochs):
         for i, (x, y) in enumerate(train_dataloader):
