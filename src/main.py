@@ -11,7 +11,8 @@ from torchvision.datasets import ImageFolder
 from torchvision.transforms import Compose, ToTensor, Normalize
 
 from model import SimpleModel
-from utils.constants import TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD
+from metric import compute_accuracy
+from utils.constants import TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD, TEST_IMAGE_MEAN, TEST_IMAGE_STD
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Parameters for train/test script')
@@ -21,17 +22,19 @@ def parse_args():
     parser.add_argument('--test-batch-size', type=int, default=32, help='Testing batch size')
     parser.add_argument('--optimizer', choices=['SGD'], default='SGD')
     parser.add_argument('--data-dir', help='Path to data folders', required=True)
-    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--use-cpu', action='store_true')
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     args = parse_args()
-    use_cuda = not args.cuda and torch.cuda.is_available()
+    use_cuda = not args.use_cpu and torch.cuda.is_available()
     device = 'cuda' if use_cuda else 'cpu'
 
     train_transform = Compose([ToTensor(), Normalize(TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD)])
+    test_transform = Compose([ToTensor(), Normalize(TEST_IMAGE_MEAN, TEST_IMAGE_STD)])
     train_dataset = ImageFolder(os.path.join(args.data_dir, 'train/'), transform=train_transform)
-    test_dataset = ImageFolder(os.path.join(args.data_dir, 'test/'), transform=train_transform)
+    test_dataset = ImageFolder(os.path.join(args.data_dir, 'test/'), transform=test_transform)
     train_dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, drop_last=True)
     test_dataloader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=True, drop_last=True)
 
@@ -45,11 +48,15 @@ if __name__ == '__main__':
     optimizer = SGD(model.parameters(), lr=args.learning_rate)
 
     for epoch in range(args.epochs):
+        training_accuracy = compute_accuracy(model, train_dataloader, device)
+        ttest_accuracy = compute_accuracy(model, test_dataloader, device)
+        wandb.log({'training accuracy': training_accuracy, 'test_accuracy': ttest_accuracy})
+
         for i, (x, y) in enumerate(train_dataloader):
             x, y = x.to(device), y.to(device)
-            y_prediction = model(x)
-            loss = criterion(y_prediction, y)
+            y_raw_prediction, _ = model(x)
+            loss = criterion(y_raw_prediction, y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            wandb.log({'loss': loss})
+            wandb.log({'training loss': loss})
