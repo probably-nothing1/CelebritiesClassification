@@ -50,7 +50,8 @@ if __name__ == '__main__':
     for epoch in range(args.epochs):
         training_accuracy = compute_accuracy(model, train_dataloader, device)
         test_accuracy = compute_accuracy(model, test_dataloader, device)
-        wandb.log({'training accuracy': training_accuracy, 'test_accuracy': test_accuracy})
+        wandb.log({'training accuracy': training_accuracy})
+        wandb.log({'test_accuracy': test_accuracy})
 
         for i, (x, y) in enumerate(train_dataloader):
             x, y = x.to(device), y.to(device)
