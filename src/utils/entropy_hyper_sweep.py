@@ -1,3 +1,4 @@
+import os
 import subprocess
 import argparse
 
@@ -6,8 +7,8 @@ def parse_args():
   parser.add_argument('--job-name', type=str, default='GSN-hw1')
   parser.add_argument('--partition', type=str, default='common')
   parser.add_argument('--qos', type=str, default='8gpu3d')
-  parser.add_argument('--gpu_card_type', type=str, default='')
-  parser.add_argument('--gpu_number', type=str, default='1')
+  parser.add_argument('--gpu-card-type', type=str, default='')
+  parser.add_argument('--gpu-number', type=str, default='1')
   parser.add_argument('--nodelist', type=str, default='asusgpu4')
 
   parser.add_argument('--learning-rates', '-lrs', nargs='+', type=float, help='Learning rates')
@@ -20,25 +21,32 @@ def parse_args():
   return parser.parse_args()
 
 def prepare_entropy_command(args):
-  return '#!/bin/bash\n' + \
-        '\#\n' + \
-        f'\#SBATCH --job-name={args.job_name}\n' + \
-        f'\#SBATCH --partition={args.partition}\n' + \
-        f'\#SBATCH --qos={args.qos}\n' + \
-        f'\#SBATCH --gres=gpu:{args.gpu_card_type}rtx2080ti:{args.gpu_number}8\n' + \
-        f'\#SBATCH --nodelist={args.nodelist}asusgpu2\n'
+  cmd = '#!/bin/bash\n'
+  cmd += '#\n'
+  cmd += f'#SBATCH --job-name={args.job_name}\n'
+  cmd += f'#SBATCH --partition={args.partition}\n'
+  cmd += f'#SBATCH --qos={args.qos}\n'
+  cmd += f'#SBATCH --gres=gpu:{args.gpu_card_type}:{args.gpu_number}\n'
+  cmd += f'#SBATCH --nodelist={args.nodelist}\n\n'
+  return cmd
 
 
 if __name__ == '__main__':
   args = parse_args()
-  cmd = prepare_entropy_command(args)
 
   for lr in args.learning_rates:
-    cmd = f'python3 src/main.py --data-dir {args.data_dir} --learning-rate {lr} ' + \
-          f'--optimizer {args.optimizer} --epochs {args.epochs} ' + \
-          f'--train-batch-size {args.train_batch_size} --test-batch-size {args.test_batch_size} '
+    os.remove('job.sh')
+
+    cmd = prepare_entropy_command(args)
+    cmd += f'python3 src/main.py --data-dir {args.data_dir} --learning-rate {lr} '
+    cmd += f'--optimizer {args.optimizer} --epochs {args.epochs} '
+    cmd += f'--train-batch-size {args.train_batch_size} --test-batch-size {args.test_batch_size} '
     cmd += f'--use-cpu' if args.use_cpu else ''
+    cmd += '\n'
 
-    print(f'Executing command: {cmd}')
+    with open('job.sh', 'w') as f:
+      f.write(cmd)
 
-    subprocess.run(cmd, shell=True)
+    # print(f'Executing command: {cmd}')
+
+    subprocess.run('sbatch job.sh', shell=True)
