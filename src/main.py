@@ -19,12 +19,27 @@ def parse_args():
     parser.add_argument('--learning-rate', '-lr', type=float, default=1e-2, help='Learning rate')
     parser.add_argument('--epochs', type=int, default=3, help='training epochs')
     parser.add_argument('--train-batch-size', type=int, default=32, help='Training batch size')
-    parser.add_argument('--test-batch-size', type=int, default=32, help='Testing batch size')
+    parser.add_argument('--test-batch-size', type=int, default=256, help='Testing batch size')
     parser.add_argument('--optimizer', choices=['SGD'], default='SGD')
     parser.add_argument('--data-dir', help='Path to data folders', required=True)
     parser.add_argument('--use-cpu', action='store_true')
     return parser.parse_args()
 
+
+def compute_loss(model, dataloader, num=20):
+    total_loss = 0
+    model.eval()
+
+    for i, (x, y) in enumerate(train_dataloader):
+        if i > num:
+            break
+        x, y = x.to(device), y.to(device)
+        y_raw_prediction, _ = model(x)
+        loss = criterion(y_raw_prediction, y)
+        total_loss += loss.item()
+
+    model.train()
+    return total_loss / num
 
 if __name__ == '__main__':
     args = parse_args()
@@ -61,3 +76,7 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             wandb.log({'training loss': loss})
+
+            if i % 10 == 0:
+                test_loss = compute_loss(model, test_dataloader)
+                wandb.log({'test loss': loss})
