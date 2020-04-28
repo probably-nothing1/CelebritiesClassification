@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import Compose, ToTensor, Normalize
 
-from model import SimpleModel
-from metric import compute_accuracy
-from utils.constants import TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD, TEST_IMAGE_MEAN, TEST_IMAGE_STD
+from models import SimpleModel
+from metrics import compute_accuracy, compute_confusion_matrix
+from dataset.constants import TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD, TEST_IMAGE_MEAN, TEST_IMAGE_STD
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Parameters for train/test script')
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     train_dataset = ImageFolder(os.path.join(args.data_dir, 'train/'), transform=train_transform)
     test_dataset = ImageFolder(os.path.join(args.data_dir, 'test/'), transform=test_transform)
     train_dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, drop_last=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=True, drop_last=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=True, drop_last=False)
 
     model = SimpleModel().to(device)
 
@@ -62,12 +62,12 @@ if __name__ == '__main__':
     criterion = CrossEntropyLoss(reduction='mean')
     optimizer = SGD(model.parameters(), lr=args.learning_rate)
 
-    for epoch in range(args.epochs):
-        training_accuracy = compute_accuracy(model, train_dataloader, device)
-        test_accuracy = compute_accuracy(model, test_dataloader, device)
-        wandb.log({'training accuracy': training_accuracy})
-        wandb.log({'test_accuracy': test_accuracy})
+    training_accuracy = compute_accuracy(model, train_dataloader, device)
+    test_accuracy = compute_accuracy(model, test_dataloader, device)
+    wandb.log({'training accuracy': training_accuracy})
+    wandb.log({'test_accuracy': test_accuracy})
 
+    for epoch in range(args.epochs):
         for i, (x, y) in enumerate(train_dataloader):
             x, y = x.to(device), y.to(device)
             y_raw_prediction, _ = model(x)
@@ -80,3 +80,8 @@ if __name__ == '__main__':
             if i % 10 == 0:
                 test_loss = compute_loss(model, test_dataloader)
                 wandb.log({'test loss': loss})
+
+        training_accuracy = compute_accuracy(model, train_dataloader, device)
+        test_accuracy = compute_accuracy(model, test_dataloader, device)
+        wandb.log({'training accuracy': training_accuracy})
+        wandb.log({'test_accuracy': test_accuracy})
