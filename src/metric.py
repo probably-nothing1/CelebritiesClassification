@@ -2,7 +2,7 @@ import torch
 
 def compute_accuracy(model, dataloader, device):
     num_correct = 0
-    num_images = len(dataloader) * dataloader.batch_size
+    num_images = len(dataloader.dataset.samples)
     model.eval()
     for i, (x, y) in enumerate(dataloader):
         x, y = x.to(device), y.to(device)
@@ -12,3 +12,16 @@ def compute_accuracy(model, dataloader, device):
 
     model.train()
     return num_correct / num_images
+
+def compute_confusion_matrix(model, dataloader, device, num_classes=28):
+    model.eval()
+    confusion_matrix = torch.zeros((num_classes, num_classes))
+    for i, (x, y) in enumerate(dataloader):
+        x, y = x.to(device), y.to(device)
+        _, probabilities = model(x)
+        predicted_classes = torch.argmax(probabilities, dim=1)
+        for y_gt, y_pred in zip(y, predicted_classes):
+            confusion_matrix[y_gt, y_pred] += 1
+
+    model.train()
+    return confusion_matrix
