@@ -25,3 +25,12 @@ def compute_confusion_matrix(model, dataloader, device, num_classes=28):
 
     model.train()
     return confusion_matrix
+
+def plot_confusion_matrix(confusion_matrix, num_classes=28):
+    import matplotlib.pyplot as plt
+    import seaborn
+    fig, ax = plt.subplots(figsize=(20,15))
+    seaborn.heatmap(confusion_matrix, annot=True, xticklabels=range(num_classes), yticklabels=range(num_classes))
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.show()
