@@ -11,33 +11,14 @@ from models import SimpleModel
 from training import warmup, dispatch_lr_scheduler, get_lr, dispatch_optimizer
 from metrics import compute_accuracy, compute_confusion_matrix, compute_loss
 from dataset import get_train_dataloader, get_test_dataloader
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='Parameters for train/test script')
-    parser.add_argument('--learning-rate', '-lr', type=float, default=1e-2, help='Learning rate')
-    parser.add_argument('--epochs', type=int, default=3, help='training epochs')
-    parser.add_argument('--train-batch-size', type=int, default=32, help='Training batch size')
-    parser.add_argument('--test-batch-size', type=int, default=32, help='Testing batch size')
-    parser.add_argument('--optimizer', choices=['SGD', 'Adam', 'AdamW'], default='SGD')
-    parser.add_argument('--momentum', type=float, default=0.0)
-    parser.add_argument('--weight-decay', type=float, default=0.0001)
-    parser.add_argument('--warmup', type=int, default=0)
-    parser.add_argument('--augmentation', action='store_true')
-    parser.add_argument('--lr-scheduler', default=None, choices=[None, 'StepLR', 'MultiStepLR', 'CosineAnnealingLR', 'CyclicLR', 'OneCycleLR', 'CosineAnnealingWarmRestarts'])
-    parser.add_argument('--step-lr-step-size', type=int, default=1)
-    parser.add_argument('--step-lr-gamma', type=float, default=0.9)
-    parser.add_argument('--multistep-lr-milestones', nargs='+', type=int, default=[5, 10])
-    parser.add_argument('--multistep-lr-gamma', type=float, default=0.3)
-    parser.add_argument('--data-dir', help='Path to data folders', required=True)
-    parser.add_argument('--use-cpu', action='store_true')
-    return parser.parse_args()
+from utils import parse_args
 
 
 if __name__ == '__main__':
     args = parse_args()
     use_cuda = not args.use_cpu and torch.cuda.is_available()
     device = 'cuda' if use_cuda else 'cpu'
+    bs = args.train_batch_size
 
     train_dataloader = get_train_dataloader(os.path.join(args.data_dir, 'train/'), args.train_batch_size, args.augmentation)
     test_dataloader = get_test_dataloader(os.path.join(args.data_dir, 'test/'), args.test_batch_size)
@@ -55,8 +36,8 @@ if __name__ == '__main__':
     iteration = 0
     training_accuracy = compute_accuracy(model, train_dataloader, device)
     test_accuracy = compute_accuracy(model, test_dataloader, device)
-    wandb.log({'training accuracy': training_accuracy}, step=iteration)
-    wandb.log({'test_accuracy': test_accuracy}, step=iteration)
+    wandb.log({'training accuracy': training_accuracy}, step=iteration*bs)
+    wandb.log({'test_accuracy': test_accuracy}, step=iteration*bs)
 
     for epoch in range(args.epochs):
         for x, y in train_dataloader:
@@ -69,17 +50,17 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            wandb.log({'training loss': loss}, step=iteration)
-            wandb.log({'learning rate': get_lr(optimizer)}, step=iteration)
+            wandb.log({'training loss': loss}, step=iteration*bs)
+            wandb.log({'learning rate': get_lr(optimizer)}, step=iteration*bs)
 
             if iteration % 10 == 0:
                 test_loss = compute_loss(model, test_dataloader, loss_function, device)
-                wandb.log({'test loss': loss}, step=iteration)
-            wandb.log({'iteration': iteration}, step=iteration)
+                wandb.log({'test loss': loss}, step=iteration*bs)
+            wandb.log({'iteration': iteration}, step=iteration*bs)
             iteration += 1
 
         lr_scheduler.step()
         training_accuracy = compute_accuracy(model, train_dataloader, device)
         test_accuracy = compute_accuracy(model, test_dataloader, device)
-        wandb.log({'training accuracy': training_accuracy}, step=iteration)
-        wandb.log({'test_accuracy': test_accuracy}, step=iteration)
+        wandb.log({'training accuracy': training_accuracy}, step=iteration*bs)
+        wandb.log({'test_accuracy': test_accuracy}, step=iteration*bs)
