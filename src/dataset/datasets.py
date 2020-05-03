@@ -5,8 +5,7 @@ from torchvision.transforms import Compose, ToTensor, Normalize, ColorJitter, Ra
 
 from .constants import TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD, TEST_IMAGE_MEAN, TEST_IMAGE_STD
 
-
-def get_train_dataloader(data_dir, batch_size, augmentation=False):
+def get_train_dataset(data_dir, augmentation=False):
   transform_list = [ToTensor(), Normalize(TRAIN_IMAGE_MEAN, TRAIN_IMAGE_STD)]
   augmentation_list = []
   if augmentation:
@@ -14,13 +13,17 @@ def get_train_dataloader(data_dir, batch_size, augmentation=False):
     augmentation_list.append(RandomHorizontalFlip())
     augmentation_list.append(RandomResizedCrop(size=250, scale=(0.9, 1.0), ratio=(0.95, 1.05)))
 
-  train_transform = Compose(augmentation_list + transform_list)
-  train_dataset = ImageFolder(data_dir, transform=train_transform)
-  train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=11)
-  return train_dataloader
+  transform = Compose(augmentation_list + transform_list)
+  return ImageFolder(data_dir, transform=transform)
+
+def get_test_dataset(data_dir):
+  transform = Compose([ToTensor(), Normalize(TEST_IMAGE_MEAN, TEST_IMAGE_STD)])
+  return ImageFolder(data_dir, transform=transform)
+
+def get_train_dataloader(data_dir, batch_size, augmentation=False):
+  dataset = get_train_dataset(data_dir, augmentation=augmentation)
+  return DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=11)
 
 def get_test_dataloader(data_dir, batch_size):
-  test_transform = Compose([ToTensor(), Normalize(TEST_IMAGE_MEAN, TEST_IMAGE_STD)])
-  test_dataset = ImageFolder(data_dir, transform=test_transform)
-  test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=11)
-  return test_dataloader
+  dataset = get_test_dataset(data_dir)
+  return DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=11)
