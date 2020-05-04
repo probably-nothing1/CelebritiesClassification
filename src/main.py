@@ -1,7 +1,8 @@
 import argparse
 import os
-import wandb
+import time
 
+import wandb
 import torch
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     train_dataloader = get_train_dataloader(os.path.join(args.data_dir, 'train/'), args.train_batch_size, args.augmentation)
     test_dataloader = get_test_dataloader(os.path.join(args.data_dir, 'test/'), args.test_batch_size)
 
-    model = SimpleModel().to(device)
+    model = SimpleModel(use_bn=args.use_bn).to(device)
 
     wandb.init(project="classifying-celebrities", config=args)
     wandb.watch(model, log='all')
@@ -41,6 +42,7 @@ if __name__ == '__main__':
 
     for epoch in range(args.epochs):
         for x, y in train_dataloader:
+            start_time = time.time()
             if iteration < args.warmup:
                 warmup(iteration, optimizer, args.learning_rate, args.warmup)
             x, y = x.to(device), y.to(device)
@@ -56,7 +58,8 @@ if __name__ == '__main__':
             if iteration % 10 == 0:
                 test_loss = compute_loss(model, test_dataloader, loss_function, device)
                 wandb.log({'test loss': loss}, step=iteration*bs)
-            wandb.log({'iteration': iteration}, step=iteration*bs)
+            wandb.log({'iteration': iteration}, step=iteration * bs)
+            wandb.log({'iteration time': time.time() - start_time}, step=iteration*bs)
             iteration += 1
 
         lr_scheduler.step()
